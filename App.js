@@ -20,7 +20,7 @@ import EditarPerfilScreen from './screens/EditarPerfilScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-
+// é isso ai 
 function MainTabs() {
   return (
     <Tab.Navigator
