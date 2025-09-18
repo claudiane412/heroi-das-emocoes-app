@@ -161,7 +161,6 @@ app.put('/usuario/atualizar', autenticarToken, async (req, res) => {
 app.post('/diario', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
     const { titulo, mensagem, humor } = req.body;
-
     if (!titulo || !mensagem || !humor) {
         return res.status(400).json({ message: 'Preencha todos os campos do diário' });
     }

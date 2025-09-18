@@ -159,7 +159,8 @@ export default function DashboardScreen({ navigation }) {
         </Card>
       </View>
 
-      {/* Botões de Navegação */}
+      /*{/* Botões de Navegação */}
+      {/*
       <View style={styles.botoesNavegacao}>
         <TouchableOpacity style={styles.botao} onPress={() => navigation.navigate('Diario')}>
           <MaterialCommunityIcons name="notebook-outline" size={30} color="#fff" />
@@ -174,6 +175,7 @@ export default function DashboardScreen({ navigation }) {
           <Text style={styles.botaoTexto}>Histórico</Text>
         </TouchableOpacity>
       </View>
+        */}
     </ScrollView>
   );
 }
