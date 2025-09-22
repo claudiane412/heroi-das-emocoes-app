@@ -215,6 +215,31 @@ app.post('/reflexoes', autenticarToken, async (req, res) => {
     }
 });
 
+
+// Rota para salvar a reflexão
+// Recebe os dados do aplicativo e salva no banco de dados
+app.post('/salvar_reflexao', autenticarToken, async (req, res) => {
+    const idUsuario = req.usuario.id;
+    const { gratidao, desconforto, solucao, humor } = req.body;
+
+    // Garante que pelo menos um dos campos de reflexão está preenchido
+    if (!gratidao && !desconforto && !humor) {
+        return res.status(400).json({ message: 'Pelo menos um dos campos de reflexão (gratidao, desconforto, humor) deve ser preenchido.' });
+    }
+
+    try {
+        await query(
+            'INSERT INTO reflexoes (usuario_id, data, gratidao, desconforto, solucao, humor) VALUES (?, NOW(), ?, ?, ?, ?)',
+            [idUsuario, gratidao, desconforto || null, solucao || null, humor || null]
+        );
+        res.status(201).json({ message: 'Reflexão salva com sucesso!' });
+    } catch (err) {
+        console.error('Erro ao salvar reflexão:', err);
+        res.status(500).json({ message: 'Erro interno do servidor ao salvar reflexão.' });
+    }
+});
+
+
 app.listen(port, '0.0.0.0', () => {
     console.log(`Servidor rodando na porta http://10.0.2.15:3000`);
 });
