@@ -62,6 +62,9 @@ export default function DiarioScreen({ navigation }) {
     const [novaEmocao, setNovaEmocao] = useState(opcoesEmocoes[0].value);
     const [novaDescricao, setNovaDescricao] = useState('');
     const [reflexao, setReflexao] = useState('Continue registrando suas emoções para evoluir!');
+    
+    // NOVO: Estado para evitar cliques duplicados
+    const [isSaving, setIsSaving] = useState(false);
 
     // NOVO BLOCO: Função para buscar as entradas do diário do backend
     const fetchEntradas = async () => {
@@ -81,7 +84,8 @@ export default function DiarioScreen({ navigation }) {
 
             if (response.status === 200) {
                 const data = await response.json();
-                setEntradas(data); // Atualiza o estado com as entradas do banco
+                // CORREÇÃO: Inverte a lista para que a entrada mais recente fique no topo
+                setEntradas(data.reverse()); 
             } else {
                 console.error('Erro ao buscar entradas:', await response.text());
             }
@@ -97,10 +101,19 @@ export default function DiarioScreen({ navigation }) {
 
     // Função para adicionar uma nova entrada, ajustada para salvar no banco
     async function adicionarEntrada() {
+        // CORREÇÃO: Verifica se já está salvando para evitar duplicações
+        if (isSaving) {
+            console.log('Já está salvando, ignorando clique duplicado.');
+            return;
+        }
+
         if (!novaDescricao.trim()) {
             Alert.alert('Erro', 'Por favor, escreva uma descrição para a entrada.');
             return;
         }
+
+        // NOVO: Ativa a trava de salvamento
+        setIsSaving(true);
 
         const emocaoInfo = opcoesEmocoes.find((e) => e.value === novaEmocao);
         const dadosParaBackend = {
@@ -113,6 +126,7 @@ export default function DiarioScreen({ navigation }) {
         if (!token) {
             console.error('ERRO: Token de autenticação não encontrado no AsyncStorage.');
             Alert.alert('Erro de Autenticação', 'Você precisa fazer login novamente para salvar no diário.');
+            setIsSaving(false); // IMPORTANTE: Desativa a trava em caso de erro
             return;
         }
 
@@ -139,6 +153,9 @@ export default function DiarioScreen({ navigation }) {
         } catch (error) {
             console.error('Erro na requisição da API:', error);
             Alert.alert('Erro de Conexão', 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
+        } finally {
+            // NOVO: Sempre desativa a trava de salvamento no final, com sucesso ou erro.
+            setIsSaving(false); 
         }
     }
 
@@ -264,8 +281,11 @@ export default function DiarioScreen({ navigation }) {
                     onChangeText={setNovaDescricao}
                 />
 
-                <TouchableOpacity style={styles.botaoAdicionar} onPress={adicionarEntrada}>
-                    <Text style={styles.botaoTexto}>Adicionar Entrada</Text>
+                {/* CORREÇÃO: Botão com trava de salvamento e feedback visual */}
+                <TouchableOpacity style={styles.botaoAdicionar} onPress={adicionarEntrada} disabled={isSaving}>
+                    <Text style={styles.botaoTexto}>
+                        {isSaving ? 'Salvando...' : 'Adicionar Entrada'}
+                    </Text>
                 </TouchableOpacity>
             </Card>
 

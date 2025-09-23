@@ -158,38 +158,87 @@ app.put('/usuario/atualizar', autenticarToken, async (req, res) => {
 
 // Criar entrada de diário
 // Esta rota espera "titulo" e "mensagem" para a tabela "entradas_diario"
+//app.post('/diario', autenticarToken, async (req, res) => {
+ //   const idUsuario = req.usuario.id;
+ //   const { titulo, mensagem, humor } = req.body;
+//    if (!titulo || !mensagem || !humor ) {
+//        return res.status(400).json({ message: 'Preencha todos os campos do diário' });
+ //   }
+
+   // try {
+   //     await query(
+     //       'INSERT INTO entradas_diario (usuario_id, titulo, mensagem, humor, data) VALUES (?, ?, ?, ?, NOW())',
+       //     [idUsuario, titulo, mensagem, humor]
+        //);
+        //res.status(201).json({ message: 'Entrada do diário criada com sucesso' });
+    //} catch (err) {
+      //  console.error(err);
+       // res.status(500).json({ message: 'Erro ao criar entrada do diário' });
+    //}
+//});
+// ROTA PARA SALVAR UMA NOVA ENTRADA DO DIÁRIO
 app.post('/diario', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
     const { titulo, mensagem, humor } = req.body;
-    if (!titulo || !mensagem || !humor ) {
-        return res.status(400).json({ message: 'Preencha todos os campos do diário' });
+    
+    if (!titulo || !mensagem || !humor) {
+        return res.status(400).json({ message: 'Dados incompletos para a entrada do diário.' });
     }
-
-    try {
-        await query(
-            'INSERT INTO entradas_diario (usuario_id, titulo, mensagem, humor, data) VALUES (?, ?, ?, ?, NOW())',
-            [idUsuario, titulo, mensagem, humor]
-        );
-        res.status(201).json({ message: 'Entrada do diário criada com sucesso' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Erro ao criar entrada do diário' });
-    }
-});
-
-// Listar entradas do diário
-app.get('/diario', autenticarToken, async (req, res) => {
-    const idUsuario = req.usuario.id;
 
     try {
         const resultado = await query(
-            'SELECT * FROM entradas_diario WHERE usuario_id = ? ORDER BY data DESC',
-            [idUsuario]
+            // MODIFICAÇÃO: Usando NOW() para incluir a data e hora
+            'INSERT INTO entradas_diario (usuario_id, data, titulo, mensagem, humor) VALUES (?, NOW(), ?, ?, ?)',
+            [idUsuario, titulo, mensagem, humor]
         );
-        res.json(resultado);
+        res.status(201).json({ id: resultado.insertId, message: 'Entrada do diário salva com sucesso!' });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'Erro ao buscar entradas do diário' });
+        res.status(500).json({ message: 'Erro ao salvar a entrada do diário.' });
+    }
+});
+// ROTA PARA PUXAR TODAS AS ENTRADAS DO DIÁRIO DO USUÁRIO
+app.get('/diario', autenticarToken, async (req, res) => {
+    const idUsuario = req.usuario.id;
+    try {
+        // MODIFICAÇÃO: Usando DATE_FORMAT para retornar a data e hora formatadas
+        const entradas = await query(
+            'SELECT id, DATE_FORMAT(data, "%Y-%m-%d %H:%i:%s") as data, titulo, mensagem, humor FROM entradas_diario WHERE usuario_id = ? ORDER BY data DESC',
+            [idUsuario]
+        );
+        res.status(200).json(entradas);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erro ao buscar as entradas do diário.' });
+    }
+});
+// Listar entradas do diário
+//app.get('/diario', autenticarToken, async (req, res) => {
+  //  const idUsuario = req.usuario.id;
+
+    //try {
+      //  const resultado = await query(
+        //    'SELECT * FROM entradas_diario WHERE usuario_id = ? ORDER BY data DESC',
+          //  [idUsuario]
+        //);
+        //res.json(resultado);
+    //} catch (err) {
+      //  console.error(err);
+        //res.status(500).json({ message: 'Erro ao buscar entradas do diário' });
+    //}
+//});
+// ROTA PARA PUXAR TODAS AS REFLEXÕES DO USUÁRIO
+app.get('/minhas_reflexoes', autenticarToken, async (req, res) => {
+    const idUsuario = req.usuario.id;
+    try {
+        const reflexoes = await query(
+            'SELECT id, usuario_id, humor, gratidao, desconforto, solucao, DATE_FORMAT(data, "%Y-%m-%d") as data_formatada FROM reflexoes WHERE usuario_id = ? ORDER BY data DESC',
+            [idUsuario]
+        );
+        res.status(200).json(reflexoes);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Erro ao buscar as reflexões.' });
     }
 });
 
