@@ -161,14 +161,14 @@ app.put('/usuario/atualizar', autenticarToken, async (req, res) => {
 app.post('/diario', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
     const { titulo, mensagem, humor } = req.body;
-    if (!titulo || !mensagem || !humor) {
+    if (!titulo || !mensagem || !humor ) {
         return res.status(400).json({ message: 'Preencha todos os campos do diário' });
     }
 
     try {
         await query(
             'INSERT INTO entradas_diario (usuario_id, titulo, mensagem, humor, data) VALUES (?, ?, ?, ?, NOW())',
-            [idUsuario, titulo, mensagem, humor,data]
+            [idUsuario, titulo, mensagem, humor]
         );
         res.status(201).json({ message: 'Entrada do diário criada com sucesso' });
     } catch (err) {

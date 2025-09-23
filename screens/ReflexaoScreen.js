@@ -88,6 +88,24 @@ const sugestoes = {
   ],
 };
 
+// --- ALTERAÇÃO 1: Adição do mapa para traduzir o humor ---
+// Esse objeto traduz o emoji selecionado para uma palavra, que o banco de dados consegue salvar.
+const mapaHumor = {
+  '😄': 'Muito feliz',
+  '😊': 'Feliz',
+  '🥳': 'Animado',
+  '🤩': 'Empolgado',
+  '🙂': 'Bem',
+  '😐': 'Neutro',
+  '😞': 'Triste',
+  '😭': 'Chorando',
+  '😰': 'Ansioso',
+  '😡': 'Com raiva',
+  '😴': 'Cansado',
+};
+// --- FIM DA ALTERAÇÃO 1 ---
+
+
 export default function MensagemGratidaoScreen({ navigation }) {
   const [gratidao, setGratidao] = useState('');
   const [teveDesconforto, setTeveDesconforto] = useState(null);
@@ -134,7 +152,9 @@ export default function MensagemGratidaoScreen({ navigation }) {
       gratidao: gratidao,
       desconforto: teveDesconforto ? (opcaoDesconforto || descricaoRuim) : null,
       solucao: solucaoGerada, 
-      humor: humorAtual,
+      // --- ALTERAÇÃO 2: Substituição do humor pelo valor traduzido do mapa ---
+      humor: mapaHumor[humorAtual] || 'Não informado',
+      // --- FIM DA ALTERAÇÃO 2 ---
     };
     
     try {
@@ -176,7 +196,7 @@ export default function MensagemGratidaoScreen({ navigation }) {
       console.error('Erro no processo de salvamento:', error);
       Alert.alert('Erro', error.message || 'Ocorreu um erro ao salvar sua reflexão.');
     }
-};
+  };
 
   return (
     <ScrollView contentContainerStyle={styles.container}>

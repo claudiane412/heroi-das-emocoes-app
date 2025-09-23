@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react'; // Adicionado useEffect para buscar os dados
 import {
     View,
     Text,
@@ -35,70 +35,22 @@ const opcoesEmocoes = [
     { label: 'Confuso', emoji: '😕', value: 'Confuso 😕', pontuacao: 2 },
 ];
 
-// Fictional data for the journal entries
-const dadosFicticios = [
-    {
-        id: '1',
-        data: '29/07/2025',
-        emocao: 'Ansioso 😟',
-        descricao: 'Hoje me senti ansioso antes da prova, mas usei respiração para acalmar.',
-        pontuacao: 2
-    },
-    {
-        id: '2',
-        data: '28/07/2025',
-        emocao: 'Feliz 😊',
-        descricao: 'Passei tempo com amigos e me senti muito feliz.',
-        pontuacao: 5
-    },
-    {
-        id: '3',
-        data: '27/07/2025',
-        emocao: 'Calmo 😌',
-        descricao: 'Pratiquei mindfulness e consegui relaxar bastante.',
-        pontuacao: 4
-    },
-    {
-        id: '4',
-        data: '26/07/2025',
-        emocao: 'Triste 😔',
-        descricao: 'Tive um dia difícil, mas escrevi no diário para melhorar.',
-        pontuacao: 1
-    },
-    {
-        id: '5',
-        data: '25/07/2025',
-        emocao: 'Bravo 😠',
-        descricao: 'Fiquei irritado com uma situação, mas tentei me controlar.',
-        pontuacao: 1
-    },
-    {
-        id: '6',
-        data: '24/07/2025',
-        emocao: 'Feliz 😊',
-        descricao: 'Recebi uma boa notícia e fiquei alegre o dia todo.',
-        pontuacao: 5
-    },
-    {
-        id: '7',
-        data: '23/07/2025',
-        emocao: 'Calmo 😌',
-        descricao: 'Fiz uma caminhada e me senti em paz.',
-        pontuacao: 4
-    },
-];
+// Dados fictícios removidos. A lista agora é populada pelo banco de dados.
+// const dadosFicticios = [...];
 
 // Renders a single journal entry item for the FlatList
 const renderItem = ({ item }) => (
     <Card style={styles.entrada}>
-        <Text style={styles.data}>{item.data}</Text>
-        <Text style={styles.emocao}>{item.emocao}</Text>
-        <Text style={styles.descricao}>{item.descricao}</Text>
+        {/* Ajustado para usar o campo 'data' do banco de dados, que é uma string. */}
+        <Text style={styles.data}>{item.data ? new Date(item.data).toLocaleDateString('pt-BR') : 'Data não disponível'}</Text>
+        <Text style={styles.emocao}>{item.titulo} {opcoesEmocoes.find(e => e.label === item.humor)?.emoji}</Text>
+        <Text style={styles.descricao}>{item.mensagem}</Text>
     </Card>
 );
 
 export default function DiarioScreen({ navigation }) {
-    const [entradas, setEntradas] = useState(dadosFicticios);
+    // Alterado para um array vazio, os dados serão carregados do banco.
+    const [entradas, setEntradas] = useState([]);
     const [nivel, setNivel] = useState(18);
     const [conquistas, setConquistas] = useState([
         'Dominei a Ansiedade',
@@ -111,60 +63,62 @@ export default function DiarioScreen({ navigation }) {
     const [novaDescricao, setNovaDescricao] = useState('');
     const [reflexao, setReflexao] = useState('Continue registrando suas emoções para evoluir!');
 
-    // Function to add a new journal entry
-    
-      // ...
-async function adicionarEntrada() {
-    if (!novaDescricao.trim()) {
-        Alert.alert('Erro', 'Por favor, escreva uma descrição para a entrada.');
-        return;
-    }
+    // NOVO BLOCO: Função para buscar as entradas do diário do backend
+    const fetchEntradas = async () => {
+        try {
+            const token = await AsyncStorage.getItem('token');
+            if (!token) {
+                console.error('ERRO: Token de autenticação não encontrado no AsyncStorage.');
+                return;
+            }
 
-    const emocaoInfo = opcoesEmocoes.find((e) => e.value === novaEmocao);
-    const dadosParaBackend = {
-        titulo: emocaoInfo.label,
-        mensagem: novaDescricao.trim(),
-        humor: emocaoInfo.label,
-    };
+            const response = await fetch('http://10.0.2.15:3000/diario', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
 
-    const token = await AsyncStorage.getItem('token');
-
-    // ESTA É A NOVA VERIFICAÇÃO DE ERRO
-    if (!token) {
-        console.error('ERRO: Token de autenticação não encontrado no AsyncStorage.');
-        Alert.alert('Erro de Autenticação', 'Você precisa fazer login novamente para salvar no diário.');
-        return;
-    }
-    
-    // Esta linha mostrará o token no console. Verifique se ele não é "null" ou "undefined"
-    console.log('Token encontrado:', token);
-
-    try {
-        const response = await fetch('http://10.0.2.15:3000/diario', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify(dadosParaBackend),
-        });
-
-        if (response.status === 201) {
-            // ... (restante do código de sucesso)
-        } else {
-            const errorText = await response.text();
-            console.error('Resposta do servidor:', errorText);
-            Alert.alert('Erro', `Não foi possível salvar a entrada: ${errorText}`);
+            if (response.status === 200) {
+                const data = await response.json();
+                setEntradas(data); // Atualiza o estado com as entradas do banco
+            } else {
+                console.error('Erro ao buscar entradas:', await response.text());
+            }
+        } catch (error) {
+            console.error('Erro de conexão ao buscar entradas:', error);
         }
-    } catch (error) {
-        console.error('Erro na requisição da API:', error);
-        Alert.alert('Erro de Conexão', 'Não foi possível conectar ao servidor.');
-    }
+    };
+    
+    // NOVO BLOCO: Hook useEffect para buscar as entradas quando a tela for montada
+    useEffect(() => {
+        fetchEntradas();
+    }, []);
 
-// ...
+    // Função para adicionar uma nova entrada, ajustada para salvar no banco
+    async function adicionarEntrada() {
+        if (!novaDescricao.trim()) {
+            Alert.alert('Erro', 'Por favor, escreva uma descrição para a entrada.');
+            return;
+        }
+
+        const emocaoInfo = opcoesEmocoes.find((e) => e.value === novaEmocao);
+        const dadosParaBackend = {
+            titulo: emocaoInfo.label,
+            mensagem: novaDescricao.trim(),
+            humor: emocaoInfo.label,
+        };
+
+        const token = await AsyncStorage.getItem('token');
+        if (!token) {
+            console.error('ERRO: Token de autenticação não encontrado no AsyncStorage.');
+            Alert.alert('Erro de Autenticação', 'Você precisa fazer login novamente para salvar no diário.');
+            return;
+        }
+
+        console.log('Token encontrado:', token);
 
         try {
-            // Requisição para o backend
             const response = await fetch('http://10.0.2.15:3000/diario', {
                 method: 'POST',
                 headers: {
@@ -175,30 +129,9 @@ async function adicionarEntrada() {
             });
 
             if (response.status === 201) {
-                // Se o backend salvou, atualize o estado local
-                const dataHoje = new Date().toLocaleDateString('pt-BR');
-                const novaEntrada = {
-                    id: Math.random().toString(),
-                    data: dataHoje,
-                    emocao: emocaoInfo.value,
-                    descricao: novaDescricao.trim(),
-                    pontuacao: emocaoInfo.pontuacao,
-                };
-
-                setEntradas([novaEntrada, ...entradas]);
-                setNovaDescricao('');
-                setNivel(prev => prev + emocaoInfo.pontuacao);
-
-                // Atualiza conquistas
-                const conquista = gerarConquista(emocaoInfo.label);
-                if (conquista && !conquistas.includes(conquista)) {
-                    setConquistas(prev => [...prev, conquista]);
-                }
-
-                // Atualiza reflexão
-                setReflexao(`Hoje você enfrentou a emoção "${emocaoInfo.label}" com coragem. Continue assim!`);
-
                 Alert.alert('Entrada Salva!', 'Sua reflexão foi registrada no Diário do Herói.');
+                setNovaDescricao(''); // Limpa o campo de texto
+                fetchEntradas(); // Chama a função para recarregar os dados da tela após o sucesso
             } else {
                 const errorData = await response.json();
                 Alert.alert('Erro', `Não foi possível salvar a entrada: ${errorData.message}`);
@@ -229,12 +162,17 @@ async function adicionarEntrada() {
 
     // Graph data based on the last 7 entries
     const dadosGrafico = {
-        labels: entradas.slice(0, 7).map((e) => e.data).reverse(),
+        // Agora os dados do gráfico são populados dinamicamente das entradas buscadas do banco
+        labels: entradas.slice(0, 7).map((e) => new Date(e.data).toLocaleDateString('pt-BR')).reverse(),
         datasets: [
             {
+                // A pontuação agora é baseada no humor retornado do banco
                 data: entradas
                     .slice(0, 7)
-                    .map((e) => e.pontuacao)
+                    .map((e) => {
+                        const emocao = opcoesEmocoes.find(op => op.label === e.humor);
+                        return emocao ? emocao.pontuacao : 0; // Pega a pontuação correta
+                    })
                     .reverse(),
             },
         ],
@@ -333,9 +271,10 @@ async function adicionarEntrada() {
 
             {/* List of past entries */}
             <Text style={styles.historiaTitulo}>Sua História de Heroísmo</Text>
+            {/* O FlatList agora renderiza as entradas do banco de dados */}
             <FlatList
                 data={entradas}
-                keyExtractor={(item) => item.id}
+                keyExtractor={(item) => item.id.toString()}
                 renderItem={renderItem}
                 scrollEnabled={false}
             />
