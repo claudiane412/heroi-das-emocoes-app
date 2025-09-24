@@ -139,22 +139,38 @@ app.get('/usuario/me', autenticarToken, async (req, res) => {
 
 
 
+// Atualizar perfil do usuário// ... (código anterior)
+
 // Atualizar perfil do usuário
 app.put('/usuario/atualizar', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
-    const { nome, avatar_id, nivel_heroi, humor_atual } = req.body;
+    // ✅ Adicionado "email" na desestruturação
+    const { nome, email, avatar_id, nivel_heroi, humor_atual } = req.body;
+
+    // Lembre-se de adicionar uma validação básica para email aqui também, se desejar
+    if (!nome) {
+        return res.status(400).json({ message: 'O nome é obrigatório.' });
+    }
 
     try {
+        // ✅ Adicionado "email" na query SQL e nos parâmetros
         await query(
-            'UPDATE usuarios SET nome = ?, avatar_id = ?, nivel_heroi = ?, humor_atual = ? WHERE id = ?',
-            [nome, avatar_id, nivel_heroi, humor_atual, idUsuario]
+            'UPDATE usuarios SET nome = ?, email = ?, avatar_id = ?, nivel_heroi = ?, humor_atual = ? WHERE id = ?',
+            [nome, email, avatar_id, nivel_heroi, humor_atual, idUsuario]
         );
         res.json({ message: 'Perfil atualizado com sucesso' });
     } catch (err) {
         console.error(err);
+        // Tratamento de erro específico para e-mail duplicado, se necessário
+        if (err.code === 'ER_DUP_ENTRY' && err.sqlMessage.includes('email')) {
+            return res.status(409).json({ message: 'Este e-mail já está em uso.' });
+        }
         res.status(500).json({ message: 'Erro ao atualizar perfil' });
     }
 });
+
+// ... (restante do código)
+
 
 // Criar entrada de diário
 // Esta rota espera "titulo" e "mensagem" para a tabela "entradas_diario"
@@ -201,9 +217,9 @@ app.post('/diario', autenticarToken, async (req, res) => {
 app.get('/diario', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
     try {
-        // MODIFICAÇÃO: Usando DATE_FORMAT para retornar a data e hora formatadas
+        // CORREÇÃO: Remova o DATE_FORMAT para que o MySQL retorne a data no formato padrão
         const entradas = await query(
-            'SELECT id, DATE_FORMAT(data, "%Y-%m-%d %H:%i:%s") as data, titulo, mensagem, humor FROM entradas_diario WHERE usuario_id = ? ORDER BY data DESC',
+            'SELECT id, data, titulo, mensagem, humor FROM entradas_diario WHERE usuario_id = ? ORDER BY data DESC',
             [idUsuario]
         );
         res.status(200).json(entradas);
@@ -212,6 +228,7 @@ app.get('/diario', autenticarToken, async (req, res) => {
         res.status(500).json({ message: 'Erro ao buscar as entradas do diário.' });
     }
 });
+
 // Listar entradas do diário
 //app.get('/diario', autenticarToken, async (req, res) => {
   //  const idUsuario = req.usuario.id;

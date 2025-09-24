@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // Adicionado useEffect para buscar os dados
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -17,8 +17,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const screenWidth = Dimensions.get('window').width;
 
 // Helper component for a reusable card style
-const Card = ({ children, style }) => (
-    <View style={[styles.card, style]}>
+const Card = ({ children, style, onLayout }) => (
+    <View style={[styles.card, style]} onLayout={onLayout}>
         {children}
     </View>
 );
@@ -35,21 +35,30 @@ const opcoesEmocoes = [
     { label: 'Confuso', emoji: '😕', value: 'Confuso 😕', pontuacao: 2 },
 ];
 
-// Dados fictícios removidos. A lista agora é populada pelo banco de dados.
-// const dadosFicticios = [...];
-
 // Renders a single journal entry item for the FlatList
-const renderItem = ({ item }) => (
-    <Card style={styles.entrada}>
-        {/* Ajustado para usar o campo 'data' do banco de dados, que é uma string. */}
-        <Text style={styles.data}>{item.data ? new Date(item.data).toLocaleDateString('pt-BR') : 'Data não disponível'}</Text>
-        <Text style={styles.emocao}>{item.titulo} {opcoesEmocoes.find(e => e.label === item.humor)?.emoji}</Text>
-        <Text style={styles.descricao}>{item.mensagem}</Text>
-    </Card>
-);
+const renderItem = ({ item }) => {
+    // CORREÇÃO: Formata a data manualmente para garantir que a hora apareça
+    let dataFormatada = 'Data não disponível';
+    if (item.data) {
+        const dataObj = new Date(item.data);
+        const dia = String(dataObj.getDate()).padStart(2, '0');
+        const mes = String(dataObj.getMonth() + 1).padStart(2, '0');
+        const ano = dataObj.getFullYear();
+        const hora = String(dataObj.getHours()).padStart(2, '0');
+        const minuto = String(dataObj.getMinutes()).padStart(2, '0');
+        dataFormatada = `${dia}/${mes}/${ano} ${hora}:${minuto}`;
+    }
+
+    return (
+        <Card style={styles.entrada}>
+            <Text style={styles.data}>{dataFormatada}</Text>
+            <Text style={styles.emocao}>{item.titulo} {opcoesEmocoes.find(e => e.label === item.humor)?.emoji}</Text>
+            <Text style={styles.descricao}>{item.mensagem}</Text>
+        </Card>
+    );
+};
 
 export default function DiarioScreen({ navigation }) {
-    // Alterado para um array vazio, os dados serão carregados do banco.
     const [entradas, setEntradas] = useState([]);
     const [nivel, setNivel] = useState(18);
     const [conquistas, setConquistas] = useState([
@@ -63,10 +72,10 @@ export default function DiarioScreen({ navigation }) {
     const [novaDescricao, setNovaDescricao] = useState('');
     const [reflexao, setReflexao] = useState('Continue registrando suas emoções para evoluir!');
     
-    // NOVO: Estado para evitar cliques duplicados
     const [isSaving, setIsSaving] = useState(false);
+    const [chartWidth, setChartWidth] = useState(0); // NOVO ESTADO PARA LARGURA DO GRÁFICO
 
-    // NOVO BLOCO: Função para buscar as entradas do diário do backend
+    // Função para buscar as entradas do diário do backend
     const fetchEntradas = async () => {
         try {
             const token = await AsyncStorage.getItem('token');
@@ -84,8 +93,9 @@ export default function DiarioScreen({ navigation }) {
 
             if (response.status === 200) {
                 const data = await response.json();
-                // CORREÇÃO: Inverte a lista para que a entrada mais recente fique no topo
-                setEntradas(data.reverse()); 
+                // Ordena os dados pela data de forma decrescente (mais recente no topo)
+                const dadosOrdenados = data.sort((a, b) => new Date(b.data) - new Date(a.data));
+                setEntradas(dadosOrdenados);
             } else {
                 console.error('Erro ao buscar entradas:', await response.text());
             }
@@ -94,14 +104,13 @@ export default function DiarioScreen({ navigation }) {
         }
     };
     
-    // NOVO BLOCO: Hook useEffect para buscar as entradas quando a tela for montada
+    // Hook useEffect para buscar as entradas quando a tela for montada
     useEffect(() => {
         fetchEntradas();
     }, []);
 
-    // Função para adicionar uma nova entrada, ajustada para salvar no banco
+    // FUNÇÃO QUE FOI AJUSTADA PARA GARANTIR A ATUALIZAÇÃO DA TELA
     async function adicionarEntrada() {
-        // CORREÇÃO: Verifica se já está salvando para evitar duplicações
         if (isSaving) {
             console.log('Já está salvando, ignorando clique duplicado.');
             return;
@@ -112,7 +121,6 @@ export default function DiarioScreen({ navigation }) {
             return;
         }
 
-        // NOVO: Ativa a trava de salvamento
         setIsSaving(true);
 
         const emocaoInfo = opcoesEmocoes.find((e) => e.value === novaEmocao);
@@ -126,7 +134,7 @@ export default function DiarioScreen({ navigation }) {
         if (!token) {
             console.error('ERRO: Token de autenticação não encontrado no AsyncStorage.');
             Alert.alert('Erro de Autenticação', 'Você precisa fazer login novamente para salvar no diário.');
-            setIsSaving(false); // IMPORTANTE: Desativa a trava em caso de erro
+            setIsSaving(false);
             return;
         }
 
@@ -144,8 +152,12 @@ export default function DiarioScreen({ navigation }) {
 
             if (response.status === 201) {
                 Alert.alert('Entrada Salva!', 'Sua reflexão foi registrada no Diário do Herói.');
-                setNovaDescricao(''); // Limpa o campo de texto
-                fetchEntradas(); // Chama a função para recarregar os dados da tela após o sucesso
+                setNovaDescricao('');
+                
+                // CORREÇÃO: Chama a função para recarregar os dados da tela após o sucesso.
+                // Esta é a linha que garante que a lista seja atualizada.
+                fetchEntradas(); 
+
             } else {
                 const errorData = await response.json();
                 Alert.alert('Erro', `Não foi possível salvar a entrada: ${errorData.message}`);
@@ -154,7 +166,6 @@ export default function DiarioScreen({ navigation }) {
             console.error('Erro na requisição da API:', error);
             Alert.alert('Erro de Conexão', 'Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.');
         } finally {
-            // NOVO: Sempre desativa a trava de salvamento no final, com sucesso ou erro.
             setIsSaving(false); 
         }
     }
@@ -179,16 +190,17 @@ export default function DiarioScreen({ navigation }) {
 
     // Graph data based on the last 7 entries
     const dadosGrafico = {
-        // Agora os dados do gráfico são populados dinamicamente das entradas buscadas do banco
-        labels: entradas.slice(0, 7).map((e) => new Date(e.data).toLocaleDateString('pt-BR')).reverse(),
+        labels: entradas.slice(0, 7).map((e) => {
+            const dataObj = new Date(e.data);
+            return `${String(dataObj.getDate()).padStart(2, '0')}/${String(dataObj.getMonth() + 1).padStart(2, '0')}`;
+        }).reverse(),
         datasets: [
             {
-                // A pontuação agora é baseada no humor retornado do banco
                 data: entradas
                     .slice(0, 7)
                     .map((e) => {
                         const emocao = opcoesEmocoes.find(op => op.label === e.humor);
-                        return emocao ? emocao.pontuacao : 0; // Pega a pontuação correta
+                        return emocao ? emocao.pontuacao : 0;
                     })
                     .reverse(),
             },
@@ -209,12 +221,19 @@ export default function DiarioScreen({ navigation }) {
             </Card>
 
             {/* Graph of weekly moods */}
-            <Card style={styles.graphCard}>
+            <Card
+                style={styles.graphCard}
+                onLayout={(event) => {
+                    const { width } = event.nativeEvent.layout;
+                    // Subtrai 44 (22 de padding esquerdo + 22 de padding direito)
+                    setChartWidth(width - 44);
+                }}
+            >
                 <Text style={styles.cardTitulo}>Meu Mapa Emocional</Text>
-                {entradas.length > 0 && (
+                {entradas.length > 0 && chartWidth > 0 && (
                     <LineChart
                         data={dadosGrafico}
-                        width={screenWidth * 0.8}
+                        width={chartWidth} // AGORA O GRÁFICO USA A LARGURA DO CARD
                         height={200}
                         chartConfig={{
                             backgroundColor: '#FFFFFF',
@@ -281,7 +300,6 @@ export default function DiarioScreen({ navigation }) {
                     onChangeText={setNovaDescricao}
                 />
 
-                {/* CORREÇÃO: Botão com trava de salvamento e feedback visual */}
                 <TouchableOpacity style={styles.botaoAdicionar} onPress={adicionarEntrada} disabled={isSaving}>
                     <Text style={styles.botaoTexto}>
                         {isSaving ? 'Salvando...' : 'Adicionar Entrada'}
@@ -291,7 +309,6 @@ export default function DiarioScreen({ navigation }) {
 
             {/* List of past entries */}
             <Text style={styles.historiaTitulo}>Sua História de Heroísmo</Text>
-            {/* O FlatList agora renderiza as entradas do banco de dados */}
             <FlatList
                 data={entradas}
                 keyExtractor={(item) => item.id.toString()}
@@ -305,7 +322,7 @@ export default function DiarioScreen({ navigation }) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f8f4ff', // Light lavender
+        backgroundColor: '#f8f4ff',
         padding: 20
     },
     card: {
