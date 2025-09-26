@@ -3,7 +3,8 @@ import React, { useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import Feather from 'react-native-vector-icons/Feather';
+// Importação do componente Image
+import { Image } from 'react-native';
 
 // Telas
 import SplashScreen from './screens/SplashScreen';
@@ -14,41 +15,60 @@ import DiarioScreen from './screens/DiarioScreen';
 import ReflexaoScreen from './screens/ReflexaoScreen';
 import MissoesScreen from './screens/MissoesScreen';
 import PerfilScreen from './screens/PerfilScreen';
-
-// ** Importar a nova tela EditarPerfilScreen **
 import EditarPerfilScreen from './screens/EditarPerfilScreen';
+
+// ----------------------------------------------------
+// Passo 1: Importe seus ícones personalizados aqui
+// ----------------------------------------------------
+// Certifique-se de que os caminhos e nomes dos arquivos estão corretos
+import DashboardIcon from './assets/dashboard1.png';
+import DiarioIcon from './assets/livro.png';
+import ReflexaoIcon from './assets/bubble.png';
+import MissaoIcon from './assets/game.png';
+import PerfilIcon from './assets/perfiil.png';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
-// é isso ai 
+
 function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        tabBarIcon: ({ color, size }) => {
-          let iconName;
+        // ------------------------------------------------------------------
+        // Passo 2: Altere a lógica do ícone para usar o componente Image
+        // ------------------------------------------------------------------
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconSource;
+          let tintColor = focused ? '#3A6EBF' : 'gray';
 
           switch (route.name) {
             case 'Dashboard':
-              iconName = 'home';
+              iconSource = DashboardIcon;
               break;
             case 'Diário':
-              iconName = 'book';
+              iconSource = DiarioIcon;
               break;
-            case 'Respiração':
-              iconName = 'wind';
+            case 'Reflexão':
+              iconSource = ReflexaoIcon;
               break;
             case 'Missão':
-              iconName = 'target';
+              iconSource = MissaoIcon;
               break;
             case 'Perfil':
-              iconName = 'user';
+              iconSource = PerfilIcon;
               break;
             default:
-              iconName = 'circle';
+              // Ícone padrão caso nenhum seja encontrado
+              iconSource = DashboardIcon;
           }
 
-          return <Feather name={iconName} size={size} color={color} />;
+          // Retorna o componente de imagem personalizado
+          return (
+            <Image
+              source={iconSource}
+              style={{ width: size, height: size, tintColor: tintColor }}
+            />
+          );
         },
         tabBarActiveTintColor: '#3A6EBF',
         tabBarInactiveTintColor: 'gray',
@@ -81,11 +101,7 @@ export default function App() {
             <Stack.Screen name="Cadastro" component={CadastroScreen} />
           </>
         ) : null}
-
-        {/* Tela principal com abas */}
         <Stack.Screen name="MainTabs" component={MainTabs} />
-
-        {/* Registrar a tela EditarPerfil no Stack Navigator */}
         <Stack.Screen
           name="EditarPerfil"
           component={EditarPerfilScreen}

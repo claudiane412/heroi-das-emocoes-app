@@ -11,7 +11,7 @@ import {
     Dimensions,
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
-import { LineChart } from 'react-native-chart-kit';
+// import { LineChart } from 'react-native-chart-kit'; // REMOVIDO: Importação do LineChart
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const screenWidth = Dimensions.get('window').width;
@@ -60,20 +60,23 @@ const renderItem = ({ item }) => {
 
 export default function DiarioScreen({ navigation }) {
     const [entradas, setEntradas] = useState([]);
-    const [nivel, setNivel] = useState(18);
-    const [conquistas, setConquistas] = useState([
-        'Dominei a Ansiedade',
-        'Celebrei a Alegria do Presente',
-        'Cultivei a Calma Interior',
-        'Transformei a Raiva em Força',
-    ]);
+    // REMOVIDO: Estado do nível de equilíbrio
+    // const [nivel, setNivel] = useState(18);
+    // REMOVIDO: Estado de conquistas
+    // const [conquistas, setConquistas] = useState([
+    //     'Dominei a Ansiedade',
+    //     'Celebrei a Alegria do Presente',
+    //     'Cultivei a Calma Interior',
+    //     'Transformei a Raiva em Força',
+    // ]);
 
     const [novaEmocao, setNovaEmocao] = useState(opcoesEmocoes[0].value);
     const [novaDescricao, setNovaDescricao] = useState('');
-    const [reflexao, setReflexao] = useState('Continue registrando suas emoções para evoluir!');
+    // REMOVIDO: Estado de reflexão
+    // const [reflexao, setReflexao] = useState('Continue registrando suas emoções para evoluir!');
     
     const [isSaving, setIsSaving] = useState(false);
-    const [chartWidth, setChartWidth] = useState(0); // NOVO ESTADO PARA LARGURA DO GRÁFICO
+    // const [chartWidth, setChartWidth] = useState(0); // REMOVIDO: Estado para largura do gráfico
 
     // Função para buscar as entradas do diário do backend
     const fetchEntradas = async () => {
@@ -170,7 +173,8 @@ export default function DiarioScreen({ navigation }) {
         }
     }
 
-    // Function to generate a new achievement based on emotion
+    // REMOVIDO: Function to generate a new achievement based on emotion
+    /*
     function gerarConquista(emocao) {
         switch (emocao) {
             case 'Triste':
@@ -187,8 +191,10 @@ export default function DiarioScreen({ navigation }) {
                 return null;
         }
     }
+    */
 
-    // Graph data based on the last 7 entries
+    // REMOVIDO: Cálculo dos dados para o gráfico
+    /*
     const dadosGrafico = {
         labels: entradas.slice(0, 7).map((e) => {
             const dataObj = new Date(e.data);
@@ -206,12 +212,13 @@ export default function DiarioScreen({ navigation }) {
             },
         ],
     };
+    */
 
     return (
         <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
             <Text style={styles.titulo}>Diário do Aventureiro</Text>
 
-            {/* Hero Level Card */}
+            {/* REMOVIDO: Hero Level Card
             <Card style={styles.levelCard}>
                 <View style={styles.levelInfo}>
                     <Feather name="bar-chart-2" size={24} color="#521566" />
@@ -219,8 +226,10 @@ export default function DiarioScreen({ navigation }) {
                 </View>
                 <Text style={styles.reflexao}>{reflexao}</Text>
             </Card>
+            */}
 
-            {/* Graph of weekly moods */}
+            {/* REMOVIDO: Graph of weekly moods Card */}
+            {/*
             <Card
                 style={styles.graphCard}
                 onLayout={(event) => {
@@ -246,15 +255,17 @@ export default function DiarioScreen({ navigation }) {
                                 r: '6',
                                 strokeWidth: '2',
                                 stroke: '#ff69b4',
-                            },
+                           },
                         }}
                         bezier
                         style={{ borderRadius: 16 }}
                     />
                 )}
             </Card>
+            */}
 
-            {/* Achievements Section */}
+            {/* REMOVIDO: Achievements Section */}
+            {/*
             {conquistas.length > 0 && (
                 <Card style={styles.conquistasBox}>
                     <Text style={styles.cardTitulo}>Conquistas Emocionais</Text>
@@ -266,6 +277,7 @@ export default function DiarioScreen({ navigation }) {
                     ))}
                 </Card>
             )}
+            */}
 
             {/* Form to add a new entry */}
             <Card style={styles.form}>
@@ -343,6 +355,8 @@ const styles = StyleSheet.create({
         marginBottom: 25,
         alignSelf: 'center'
     },
+    // REMOVIDO: Estilos do nível de equilíbrio
+    /*
     levelCard: {
         padding: 22,
     },
@@ -362,16 +376,22 @@ const styles = StyleSheet.create({
         color: '#6a0dad',
         fontStyle: 'italic',
     },
+    */
+    // REMOVIDO: estilo graphCard
+    /*
     graphCard: {
         alignItems: 'center',
         padding: 10
     },
+    */
     cardTitulo: {
         fontSize: 22,
         fontWeight: 'bold',
         color: '#4b0082',
         marginBottom: 15,
     },
+    // REMOVIDO: Estilos de conquistas
+    /*
     conquistasBox: {
         padding: 22,
         borderWidth: 1,
@@ -387,6 +407,7 @@ const styles = StyleSheet.create({
         color: '#6a0dad',
         fontWeight: '500',
     },
+    */
     entrada: {
         backgroundColor: '#FFFBE6',
         borderLeftWidth: 6,
