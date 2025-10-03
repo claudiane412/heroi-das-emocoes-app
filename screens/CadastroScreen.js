@@ -13,11 +13,14 @@ import {
 export default function CadastroScreen({ navigation }) {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
+  // 🚨 NOVO ESTADO: Celular
+  const [celular, setCelular] = useState(''); 
   const [senha, setSenha] = useState('');
   const [carregando, setCarregando] = useState(false);
 
   async function cadastrar() {
-    if (!nome || !email || !senha) {
+    // 🚨 ATUALIZADO: Verifica se o campo 'celular' está preenchido
+    if (!nome || !email || !celular || !senha) {
       Alert.alert('Erro', 'Preencha todos os campos!');
       return;
     }
@@ -32,6 +35,13 @@ export default function CadastroScreen({ navigation }) {
       Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres.');
       return;
     }
+    
+    // Opcional: Adicionar validação de formato para celular
+    if (celular.length < 8) {
+       Alert.alert('Erro', 'Por favor, insira um número de celular válido.');
+       return;
+    }
+
 
     try {
       setCarregando(true);
@@ -41,15 +51,17 @@ export default function CadastroScreen({ navigation }) {
         headers: {
           'Content-Type': 'application/json',
         },
+        // 🚨 ATUALIZADO: Envia o campo 'celular' para o backend
         body: JSON.stringify({
           nome,
           email,
+          celular: celular.trim(), // Limpa espaços em branco
           senha,
           avatar_id: 1, 
         }),
       });
 
-    console.log('Status da resposta:', resposta.status);  // <-- Coloque esse console.log aqui
+    console.log('Status da resposta:', resposta.status);
     const data = await resposta.json();
     console.log('Dados da resposta:', data);  
 
@@ -89,6 +101,17 @@ export default function CadastroScreen({ navigation }) {
         autoCapitalize="none"
         keyboardType="email-address"
       />
+      {/* 🚨 NOVO INPUT: Campo para Celular */}
+      <TextInput
+        style={styles.input}
+        placeholder="Celular (Apenas números)"
+        placeholderTextColor="#777"
+        value={celular}
+        onChangeText={setCelular}
+        keyboardType="numeric" // Teclado otimizado para números de telefone
+        maxLength={11} 
+      />
+      
       <TextInput
         style={styles.input}
         placeholder="Senha"

@@ -15,6 +15,11 @@ export default function StackNavigator() {
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Cadastro" component={CadastroScreen} />
       <Stack.Screen name="Dashboard" component={TabNavigator} options={{ headerShown: false }} />
+      <Stack.Screen name="EsqueceuSenha" component={EsqueceuSenhaScreen} options={{ title: 'Recuperar Senha' }} />
+      <Stack.Screen name="RedefinirSenha" component={RedefinirSenhaScreen} options={{ title: 'Definir Nova Senha' }} />
+
     </Stack.Navigator>
+    
   );
 }
+
