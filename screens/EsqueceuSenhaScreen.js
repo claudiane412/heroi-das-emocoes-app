@@ -1,45 +1,40 @@
-// EsqueceuSenhaScreen.js (React Native)
+// EsqueceuSenhaScreen.js (React Native - FLUXO DIRETO)
 
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 
 export default function EsqueceuSenhaScreen({ navigation }) {
-    // ⚠️ MUDANÇA AQUI: Usar 'celular' em vez de 'usuario'/'email'
-    const [celular, setCelular] = useState('');
+    const [email, setEmail] = useState('');
     const [carregando, setCarregando] = useState(false);
 
     async function solicitarRecuperacao() {
-        // ⚠️ MUDANÇA AQUI: Validação para 'celular'
-        if (!celular.trim()) {
-            Alert.alert('Erro', 'Por favor, insira seu número de celular.');
+        if (!email.trim()) {
+            Alert.alert('Erro', 'Por favor, insira seu endereço de e-mail.');
             return;
         }
 
         setCarregando(true);
         try {
-            const resposta = await fetch('http://10.0.2.15:3000/solicitar-token-senha', {
+            // Chama a nova rota de validação de e-mail
+            const resposta = await fetch('http://10.0.2.15:3000/EsqueceuSenha', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                // ⚠️ MUDANÇA AQUI: Envia o campo 'celular'
-                body: JSON.stringify({ celular: celular.trim() }), 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim() }), 
             });
 
             const data = await resposta.json();
             
-            if (resposta.ok && data.token) {
-                // SUCESSO! 
-                Alert.alert(
-                    'Token Gerado!', 
-                    `Seu token de redefinição (simulando SMS) é: ${data.token}. Copie-o para a próxima tela!`
-                );
+            // Se o e-mail for encontrado, o backend retorna o usuario_id
+            if (resposta.ok && data.success && data.usuario_id) {
                 
-                // Navega para a tela de redefinição, passando o token
-                navigation.replace('RedefinirSenha', { token: data.token }); 
+                Alert.alert('E-mail Validado!', data.message);
+                
+                // Navega para a tela de nova senha, passando o ID
+                navigation.replace('RedefinirSenha', { usuarioId: data.usuario_id }); 
 
             } else {
-                Alert.alert('Erro', data.message || 'Número não encontrado ou erro ao gerar token.');
+                // Mostra a mensagem de erro (ex: Usuário não encontrado)
+                Alert.alert('Erro', data.message || 'Erro ao processar sua solicitação.');
             }
 
         } catch (erro) {
@@ -54,18 +49,17 @@ export default function EsqueceuSenhaScreen({ navigation }) {
         <View style={styles.container}>
             <Text style={styles.titulo}>Recuperar Senha</Text>
             <Text style={styles.subtitulo}>
-                Informe seu número de celular para receber um token de redefinição.
+                Informe seu e-mail para validar seu cadastro.
             </Text>
 
             <TextInput
                 style={styles.input}
-                // ⚠️ MUDANÇA AQUI: Placeholder e Teclado
-                placeholder="Seu Número de Celular (Ex: 99999-9999)"
+                placeholder="Seu E-mail"
                 placeholderTextColor="#777"
-                value={celular}
-                onChangeText={setCelular}
+                value={email}
+                onChangeText={setEmail}
                 autoCapitalize="none"
-                keyboardType="phone-pad" // Teclado numérico/telefone
+                keyboardType="email-address"
             />
 
             <TouchableOpacity 
@@ -76,7 +70,7 @@ export default function EsqueceuSenhaScreen({ navigation }) {
                 {carregando ? (
                     <ActivityIndicator color="#FFF" />
                 ) : (
-                    <Text style={styles.botaoTexto}>Gerar Token e Redefinir</Text>
+                    <Text style={styles.botaoTexto}>Validar E-mail e Redefinir</Text>
                 )}
             </TouchableOpacity>
 
@@ -87,7 +81,7 @@ export default function EsqueceuSenhaScreen({ navigation }) {
     );
 }
 
-// Os estilos (styles) podem permanecer os mesmos do seu código original
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,

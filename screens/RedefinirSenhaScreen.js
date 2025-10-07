@@ -1,19 +1,20 @@
+// RedefinirSenhaDiretaScreen.js (React Native - FLUXO DIRETO)
+
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 
 export default function RedefinirSenhaScreen({ navigation, route }) {
-    // Novo: Estado para o usuário digitar o token
-    const [tokenDigitado, setTokenDigitado] = useState(route.params?.token || ''); 
-    // Se o token foi passado pela rota (como no passo 1), ele já preenche o campo.
+    // Pega o ID do usuário da rota
+    const usuarioId = route.params?.usuarioId; 
     
     const [novaSenha, setNovaSenha] = useState('');
     const [confirmarSenha, setConfirmarSenha] = useState('');
     const [carregando, setCarregando] = useState(false);
 
-    async function redefinirSenha() {
-        // Validação do Token Digitado
-        if (!tokenDigitado) {
-            Alert.alert('Erro', 'Por favor, insira o token de redefinição.');
+    async function RedefinirSenha() {
+        if (!usuarioId) {
+            Alert.alert('Erro Crítico', 'ID de usuário não encontrado. Tente validar seu e-mail novamente.');
+            navigation.replace('Login'); 
             return;
         }
 
@@ -29,22 +30,21 @@ export default function RedefinirSenhaScreen({ navigation, route }) {
 
         setCarregando(true);
         try {
-            const resposta = await fetch('http://10.0.2.15:3000/redefinir-senha', {
+            // Chama a rota de redefinição direta
+            const resposta = await fetch('http://10.0.2.15:3000/RedefinirSenha', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                // Mudança: Usa o tokenDigitado em vez do token vindo da rota (route.params)
-                body: JSON.stringify({ token: tokenDigitado, nova_senha: novaSenha }), 
+                headers: { 'Content-Type': 'application/json' },
+                // Envia o ID e a nova senha
+                body: JSON.stringify({ usuario_id: usuarioId, nova_senha: novaSenha }), 
             });
 
             const data = await resposta.json();
 
             if (resposta.ok) {
-                Alert.alert('Sucesso!', 'Sua senha foi redefinida com sucesso. Faça o login agora.');
+                Alert.alert('Sucesso!', 'Sua senha foi redefinida com sucesso!');
                 navigation.replace('Login'); // Redireciona para o login
             } else {
-                Alert.alert('Erro', data.message || 'Erro ao redefinir a senha. O token pode ser inválido ou ter expirado.');
+                Alert.alert('Erro', data.message || 'Erro ao redefinir a senha.');
             }
 
         } catch (erro) {
@@ -57,22 +57,12 @@ export default function RedefinirSenhaScreen({ navigation, route }) {
 
     return (
         <View style={styles.container}>
-            <Text style={styles.titulo}>Nova Senha e Token</Text>
+            <Text style={styles.titulo}>Definir Nova Senha</Text>
             <Text style={styles.subtitulo}>
-                Insira o token recebido e defina sua nova senha.
+                Defina e confirme a sua nova senha.
             </Text>
-
-            {/* NOVO CAMPO: Para o usuário digitar o token */}
-            <TextInput
-                style={styles.input}
-                placeholder="Token de Redefinição"
-                placeholderTextColor="#777"
-                value={tokenDigitado}
-                onChangeText={setTokenDigitado}
-                autoCapitalize="none"
-                keyboardType="default"
-            />
             
+            {/* Campos da Nova Senha */}
             <TextInput
                 style={styles.input}
                 placeholder="Nova Senha (mínimo 6 caracteres)"
@@ -109,7 +99,6 @@ export default function RedefinirSenhaScreen({ navigation, route }) {
     );
 }
 
-// Os estilos (styles) podem permanecer os mesmos do seu código original
 const styles = StyleSheet.create({
     container: {
         flex: 1,
@@ -163,3 +152,6 @@ const styles = StyleSheet.create({
         fontSize: 16,
     },
 });
+
+
+
