@@ -11,7 +11,7 @@ export default function RedefinirSenhaScreen({ navigation, route }) {
     const [confirmarSenha, setConfirmarSenha] = useState('');
     const [carregando, setCarregando] = useState(false);
 
-    async function RedefinirSenha() {
+    async function redefinirSenha() {
         if (!usuarioId) {
             Alert.alert('Erro Crítico', 'ID de usuário não encontrado. Tente validar seu e-mail novamente.');
             navigation.replace('Login'); 

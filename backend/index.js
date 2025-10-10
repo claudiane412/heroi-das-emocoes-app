@@ -1,15 +1,13 @@
-// index.js (Servidor Backend Node.js)
+// index.js (Servidor Backend Node.js - FLUXO DIRETO E INSEGURO)
 
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const mysql = require('mysql');
 const util = require('util');
-const { v4: uuidv4 } = require('uuid'); 
-// OU se quiser um código de 6 dígitos:
-// const generateSixDigitCode = () => Math.floor(100000 + Math.random() * 900000).toString(); 
+// Nodemailer e lógica de tokens removidos deste fluxo.
 
 const app = express();
 const port = 3000;
@@ -36,33 +34,12 @@ connection.connect(async (err) => {
     }
     console.log('Conectado ao MySQL');
     
-    // CHAMADA PARA GARANTIR QUE A TABELA DE TOKEN EXISTE
-    try {
-        await ensurePasswordResetTableExists(); 
-        
-        app.listen(port, '0.0.0.0', () => {
-            console.log(`Servidor rodando na porta http://10.0.2.15:3000`);
-        });
-    } catch (e) {
-        // Se a criação da tabela falhar, o servidor não deve iniciar
-        console.error("Servidor não iniciado devido a erro crítico no banco de dados.");
-    }
+    // Nenhuma tabela de token é necessária para este fluxo
+    app.listen(port, '0.0.0.0', () => {
+        console.log(`Servidor rodando na porta http://10.0.2.15:3000`);
+    });
 });
 
-/**
- * Função que cria a tabela de tokens de recuperação se ela não existir.
- */
-async function ensurePasswordResetTableExists() {
-    const createTableQuery = "CREATE TABLE IF NOT EXISTS password_reset_tokens ( id INT AUTO_INCREMENT PRIMARY KEY, usuario_id INT NOT NULL, token VARCHAR(255) UNIQUE NOT NULL, expira_em DATETIME NOT NULL, criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (usuario_id) REFERENCES usuarios(id) ON DELETE CASCADE );";
-
-    try {
-        await query(createTableQuery);
-        console.log('Tabela password_reset_tokens verificada/criada com sucesso.');
-    } catch (err) {
-        console.error('Erro CRÍTICO ao criar a tabela de tokens:', err);
-        throw err; // Força a interrupção da inicialização do servidor se a tabela falhar
-    }
-}
 
 // Middleware para autenticar token JWT
 function autenticarToken(req, res, next) {
@@ -77,9 +54,8 @@ function autenticarToken(req, res, next) {
     });
 }
 
-// Rota de registro (AJUSTADA PARA RECEBER CELULAR)
+// Rota de registro (Inalterada)
 app.post('/cadastrar', async (req, res) => {
-    // ⚠️ ATUALIZADO: Inclui 'celular'
     const { nome, email, senha, celular } = req.body; 
 
     if (!nome || !email || !senha || !celular) {
@@ -89,7 +65,6 @@ app.post('/cadastrar', async (req, res) => {
     const senhaHash = await bcrypt.hash(senha, 10);
 
     try {
-        // ⚠️ ATUALIZADO: Insere o campo 'celular'
         await query(
             'INSERT INTO usuarios (nome, email, senha, celular, avatar_id, nivel_heroi, humor_atual) VALUES (?, ?, ?, ?, ?, ?, ?)',
             [nome, email, senhaHash, celular, 1, 1, 'Neutro']
@@ -98,12 +73,11 @@ app.post('/cadastrar', async (req, res) => {
     } catch (err) {
         console.error(err);
         if (err.code === 'ER_DUP_ENTRY') {
-            // Verifica se o erro é por email ou celular já cadastrado
             let message = 'Erro ao registrar. ';
             if (err.sqlMessage.includes('email')) {
                 message += 'Email já cadastrado.';
             } else if (err.sqlMessage.includes('celular')) {
-                 message += 'Celular já cadastrado.';
+                message += 'Celular já cadastrado.';
             } else {
                 message += 'Email ou celular já cadastrado.';
             }
@@ -113,7 +87,7 @@ app.post('/cadastrar', async (req, res) => {
     }
 });
 
-// Rota de login (Mantida)
+// Rota de login (Inalterada)
 app.post('/login', async (req, res) => {
     const { email, senha } = req.body;
 
@@ -140,61 +114,50 @@ app.post('/login', async (req, res) => {
 });
 
 
-// 🚨 ROTA ATUALIZADA: Solicitar Token (Busca por CELULAR)
-app.post('/solicitar-token-senha', async (req, res) => {
-    // ⚠️ MUDANÇA: Espera o campo 'celular'
-    const { celular } = req.body; 
+// 🎯 ROTA PRINCIPAL 1/2 DO FLUXO DIRETO: VALIDAÇÃO DE E-MAIL
+// Endpoint: POST /validar-email-para-redefinicao
+app.post('/EsqueceuSenha', async (req, res) => {
+    const { email } = req.body; 
 
-    if (!celular) {
-        return res.status(400).json({ message: 'O número de celular é obrigatório.' });
+    if (!email) {
+        return res.status(400).json({ message: 'O endereço de e-mail é obrigatório.' });
     }
 
     try {
-        // ⚠️ MUDANÇA: Busca no banco de dados pelo campo 'celular'
-        const resultado = await query('SELECT id FROM usuarios WHERE celular = ?', [celular]);
+        // 1. Busca no banco de dados pelo campo 'email'
+        const resultado = await query('SELECT id FROM usuarios WHERE email = ?', [email]);
         
         if (resultado.length === 0) {
-            // Mensagem de segurança: não confirma se o celular existe
-            return res.status(404).json({ message: 'Usuário não encontrado.' });
+            // Retorna erro se o usuário não for encontrado
+            return res.status(404).json({ 
+                success: false, 
+                message: 'Usuário não encontrado. Verifique o e-mail digitado.' 
+            }); 
         }
 
         const idUsuario = resultado[0].id;
         
-        // Gera um token robusto (UUID)
-        const token = uuidv4();
-        
-        // Se preferir um código menor (6 dígitos) simular SMS, descomente o abaixo e comente o de cima:
-        // const token = Math.floor(100000 + Math.random() * 900000).toString();
-
-        // O token expira em 10 minutos
-        const expiraEm = new Date(Date.now() + 10 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
-
-        // 1. Limpar tokens antigos e Salvar o novo token
-        await query('DELETE FROM password_reset_tokens WHERE usuario_id = ?', [idUsuario]);
-        await query(
-            'INSERT INTO password_reset_tokens (usuario_id, token, expira_em) VALUES (?, ?, ?)',
-            [idUsuario, token, expiraEm]
-        );
-
-        // 2. Retornar o token diretamente para a tela do app (simulando o "SMS")
+        // 2. Retorna o ID do usuário para o frontend prosseguir
         res.json({ 
-            message: 'Token gerado com sucesso. Use-o para redefinir sua senha.',
-            token: token // O token é retornado para a tela
+            success: true,
+            message: 'E-mail validado. Prossiga para definir a nova senha.',
+            usuario_id: idUsuario // <-- ID DO USUÁRIO RETORNADO
         });
 
     } catch (err) {
-        console.error('Erro ao solicitar token:', err);
+        console.error('Erro ao validar e-mail:', err);
         res.status(500).json({ message: 'Erro interno ao processar a solicitação.' });
     }
 });
 
 
-// Rota 2: Redefinir Senha (Mantida)
-app.post('/redefinir-senha', async (req, res) => {
-    const { token, nova_senha } = req.body;
+// 🎯 ROTA PRINCIPAL 2/2 DO FLUXO DIRETO: REDEFINIR SENHA USANDO O ID DO USUÁRIO
+// Endpoint: POST /redefinir-senha-direta
+app.post('/RedefinirSenha', async (req, res) => {
+    const { usuario_id, nova_senha } = req.body; 
 
-    if (!token || !nova_senha) {
-        return res.status(400).json({ message: 'Token e nova senha são obrigatórios.' });
+    if (!usuario_id || !nova_senha) {
+        return res.status(400).json({ message: 'ID do usuário e nova senha são obrigatórios.' });
     }
     
     if (nova_senha.length < 6) {
@@ -202,24 +165,14 @@ app.post('/redefinir-senha', async (req, res) => {
     }
 
     try {
-        // 1. Verificar o token e a validade
-        const resultadoToken = await query(
-            'SELECT usuario_id FROM password_reset_tokens WHERE token = ? AND expira_em > NOW()',
-            [token]
-        );
-
-        if (resultadoToken.length === 0) {
-            return res.status(400).json({ message: 'Token inválido ou expirado. Tente solicitar um novo token.' });
-        }
-
-        const idUsuario = resultadoToken[0].usuario_id;
         const senhaHash = await bcrypt.hash(nova_senha, 10);
 
-        // 2. Atualizar a senha do usuário
-        await query('UPDATE usuarios SET senha = ? WHERE id = ?', [senhaHash, idUsuario]);
+        // Atualizar a senha do usuário
+        const resultado = await query('UPDATE usuarios SET senha = ? WHERE id = ?', [senhaHash, usuario_id]);
 
-        // 3. Deletar o token
-        await query('DELETE FROM password_reset_tokens WHERE token = ?', [token]);
+        if (resultado.affectedRows === 0) {
+            return res.status(404).json({ message: 'Usuário não encontrado ou senha não alterada.' });
+        }
 
         res.json({ message: 'Senha redefinida com sucesso!' });
 
@@ -229,7 +182,8 @@ app.post('/redefinir-senha', async (req, res) => {
     }
 });
 
-// --- Rotas de Usuário e Diário (Não Alteradas) ---
+
+// --- Rotas de Usuário e Diário (Mantidas) ---
 
 // Buscar dados do usuário logado
 app.get('/usuario/me', autenticarToken, async (req, res) => {
@@ -237,7 +191,6 @@ app.get('/usuario/me', autenticarToken, async (req, res) => {
 
     try {
         const resultado = await query(
-            // ⚠️ ATUALIZADO: Inclui 'celular' no retorno
             'SELECT nome, email, celular, avatar_id, nivel_heroi, humor_atual FROM usuarios WHERE id = ?',
             [idUsuario]
         );
@@ -254,10 +207,9 @@ app.get('/usuario/me', autenticarToken, async (req, res) => {
 });
 
 
-// Atualizar perfil do usuário (AJUSTADA PARA CELULAR)
+// Atualizar perfil do usuário
 app.put('/usuario/atualizar', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
-    // ⚠️ ATUALIZADO: Inclui 'celular'
     const { nome, email, celular, avatar_id, nivel_heroi, humor_atual } = req.body; 
 
     if (!nome) {
@@ -265,7 +217,6 @@ app.put('/usuario/atualizar', autenticarToken, async (req, res) => {
     }
 
     try {
-        // ⚠️ ATUALIZADO: Inclui 'celular' no update
         await query(
             'UPDATE usuarios SET nome = ?, email = ?, celular = ?, avatar_id = ?, nivel_heroi = ?, humor_atual = ? WHERE id = ?',
             [nome, email, celular, avatar_id, nivel_heroi, humor_atual, idUsuario]
@@ -289,7 +240,7 @@ app.put('/usuario/atualizar', autenticarToken, async (req, res) => {
 });
 
 
-// ROTA PARA SALVAR UMA NOVA ENTRADA DO DIÁRIO (Mantida)
+// ROTA PARA SALVAR UMA NOVA ENTRADA DO DIÁRIO
 app.post('/diario', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
     const { titulo, mensagem, humor } = req.body;
@@ -310,7 +261,7 @@ app.post('/diario', autenticarToken, async (req, res) => {
     }
 });
 
-// ROTA PARA PUXAR TODAS AS ENTRADAS DO DIÁRIO DO USUÁRIO (Mantida)
+// ROTA PARA PUXAR TODAS AS ENTRADAS DO DIÁRIO DO USUÁRIO
 app.get('/diario', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
     try {
@@ -325,7 +276,7 @@ app.get('/diario', autenticarToken, async (req, res) => {
     }
 });
 
-// ROTA PARA PUXAR TODAS AS REFLEXÕES DO USUÁRIO (Mantida)
+// ROTA PARA PUXAR TODAS AS REFLEXÕES DO USUÁRIO
 app.get('/minhas_reflexoes', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
     try {
@@ -340,7 +291,7 @@ app.get('/minhas_reflexoes', autenticarToken, async (req, res) => {
     }
 });
 
-// Criar reflexão (Mantida)
+// Criar reflexão
 app.post('/reflexoes', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
     const { gratidao, desconforto, solucao, humor } = req.body;
@@ -362,7 +313,7 @@ app.post('/reflexoes', autenticarToken, async (req, res) => {
 });
 
 
-// Rota para salvar a reflexão (Mantida)
+// Rota para salvar a reflexão
 app.post('/salvar_reflexao', autenticarToken, async (req, res) => {
     const idUsuario = req.usuario.id;
     const { gratidao, desconforto, solucao, humor } = req.body;

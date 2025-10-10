@@ -1,11 +1,13 @@
 // EsqueceuSenhaScreen.js (React Native - FLUXO DIRETO)
-
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 
 export default function EsqueceuSenhaScreen({ navigation }) {
     const [email, setEmail] = useState('');
     const [carregando, setCarregando] = useState(false);
+    
+    // ** ATENÇÃO: Ajuste este IP se for diferente no seu ambiente! **
+    const API_URL = 'http://10.0.2.15:3000';
 
     async function solicitarRecuperacao() {
         if (!email.trim()) {
@@ -15,8 +17,8 @@ export default function EsqueceuSenhaScreen({ navigation }) {
 
         setCarregando(true);
         try {
-            // Chama a nova rota de validação de e-mail
-            const resposta = await fetch('http://10.0.2.15:3000/EsqueceuSenha', {
+            // Chama a rota de validação de e-mail
+            const resposta = await fetch(`${API_URL}/EsqueceuSenha`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email: email.trim() }), 
@@ -24,12 +26,13 @@ export default function EsqueceuSenhaScreen({ navigation }) {
 
             const data = await resposta.json();
             
-            // Se o e-mail for encontrado, o backend retorna o usuario_id
+            // Se o e-mail for encontrado, o backend retorna o usuario_id (Fluxo Direto)
             if (resposta.ok && data.success && data.usuario_id) {
                 
                 Alert.alert('E-mail Validado!', data.message);
                 
-                // Navega para a tela de nova senha, passando o ID
+                // REDIRECIONAMENTO IMEDIATO: 
+                // Navega para a tela de nova senha, passando o ID do usuário.
                 navigation.replace('RedefinirSenha', { usuarioId: data.usuario_id }); 
 
             } else {
@@ -49,7 +52,7 @@ export default function EsqueceuSenhaScreen({ navigation }) {
         <View style={styles.container}>
             <Text style={styles.titulo}>Recuperar Senha</Text>
             <Text style={styles.subtitulo}>
-                Informe seu e-mail para validar seu cadastro.
+                Informe seu e-mail para validar seu cadastro e definir a nova senha.
             </Text>
 
             <TextInput
@@ -80,7 +83,6 @@ export default function EsqueceuSenhaScreen({ navigation }) {
         </View>
     );
 }
-
 
 const styles = StyleSheet.create({
     container: {
