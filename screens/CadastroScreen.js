@@ -11,38 +11,90 @@ import {
 } from 'react-native';
 
 export default function CadastroScreen({ navigation }) {
+  
+  // =================================================================
+  // 1. ESTADOS (HOOKS)
+  // =================================================================
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
-  // 🚨 NOVO ESTADO: Celular
   const [celular, setCelular] = useState(''); 
   const [senha, setSenha] = useState('');
   const [carregando, setCarregando] = useState(false);
 
+  // =================================================================
+  // 2. FUNÇÕES DE FILTRAGEM DE INPUT (LÓGICA DE UI)
+  // =================================================================
+
+  /**
+   * Filtra o texto de entrada do e-mail.
+   * 1. Remove caracteres não permitidos (exceto @, ., _, -).
+   * 2. Impede a escrita após a primeira ocorrência de ".com".
+   */
+  const handleEmailChange = (text) => {
+    // 1. Permite letras, números, @, . (ponto) e hífen/underline
+    const filteredText = text.replace(/[^a-zA-Z0-9@._-]/g, '');
+
+    // 2. Lógica para cortar após o ".com"
+    const comIndex = filteredText.toLowerCase().indexOf('.com');
+
+    if (comIndex !== -1 && filteredText.length > comIndex + 4) {
+      // Corta a string para manter apenas o texto até o final de ".com"
+      const finalEmail = filteredText.substring(0, comIndex + 4);
+      setEmail(finalEmail);
+    } else {
+      setEmail(filteredText);
+    }
+  };
+
+
+  /**
+   * Filtra o texto de entrada do celular (apenas números).
+   * Esta função é chamada diretamente no onChangeText do TextInput.
+   */
+  const handleCelularChange = (text) => {
+    // Remove qualquer caractere que não seja um dígito de 0 a 9
+    setCelular(text.replace(/[^0-9]/g, ''));
+  };
+
+  // =================================================================
+  // 3. FUNÇÃO PRINCIPAL DE CADASTRO (LÓGICA DE NEGÓCIO E VALIDAÇÃO)
+  // =================================================================
+
   async function cadastrar() {
-    // 🚨 ATUALIZADO: Verifica se o campo 'celular' está preenchido
+    
+    // 3.1. Validação de Campos Vazios
     if (!nome || !email || !celular || !senha) {
       Alert.alert('Erro', 'Preencha todos os campos!');
       return;
     }
 
-    const emailRegex = /\S+@\S+\.\S+/;
+    // 3.2. Validação Rígida de E-mail (força a terminação em .com e único @)
+    const emailRegex = /^[^\s@]+@[^\s@]+\.com$/i;
     if (!emailRegex.test(email)) {
-      Alert.alert('Erro', 'Por favor, insira um e-mail válido.');
+      Alert.alert('Erro', 'Por favor, insira um e-mail válido que termine exatamente em ".com".');
       return;
     }
 
+    // 3.3. Validação Rígida de Celular (garante que contém APENAS números)
+    const celularNumerosRegex = /^\d+$/;
+    if (!celularNumerosRegex.test(celular.trim())) {
+      Alert.alert('Erro', 'O campo Celular deve conter apenas números.');
+      return;
+    }
+    
+    // 3.4. Validação de Tamanho da Senha
     if (senha.length < 6) {
       Alert.alert('Erro', 'A senha deve ter pelo menos 6 caracteres.');
       return;
     }
     
-    // Opcional: Adicionar validação de formato para celular
+    // 3.5. Validação de Tamanho Mínimo do Celular (exemplo)
     if (celular.length < 8) {
-       Alert.alert('Erro', 'Por favor, insira um número de celular válido.');
-       return;
+      Alert.alert('Erro', 'Por favor, insira um número de celular válido.');
+      return;
     }
 
-
+    // 3.6. Conexão com o Backend
     try {
       setCarregando(true);
 
@@ -51,7 +103,6 @@ export default function CadastroScreen({ navigation }) {
         headers: {
           'Content-Type': 'application/json',
         },
-        // 🚨 ATUALIZADO: Envia o campo 'celular' para o backend
         body: JSON.stringify({
           nome,
           email,
@@ -61,9 +112,9 @@ export default function CadastroScreen({ navigation }) {
         }),
       });
 
-    console.log('Status da resposta:', resposta.status);
-    const data = await resposta.json();
-    console.log('Dados da resposta:', data);  
+      console.log('Status da resposta:', resposta.status);
+      const data = await resposta.json();
+      console.log('Dados da resposta:', data);  
 
 
       if (resposta.ok) {
@@ -80,6 +131,10 @@ export default function CadastroScreen({ navigation }) {
     }
   }
 
+  // =================================================================
+  // 4. RENDERIZAÇÃO (JSX)
+  // =================================================================
+
   return (
     <View style={styles.container}>
       <Image source={require('../assets/logo_heroi.png')} style={styles.logo} />
@@ -94,21 +149,21 @@ export default function CadastroScreen({ navigation }) {
       />
       <TextInput
         style={styles.input}
-        placeholder="E-mail"
+        placeholder="E-mail (apenas @ e termina em .com)"
         placeholderTextColor="#777"
         value={email}
-        onChangeText={setEmail}
+        onChangeText={handleEmailChange} // <-- Utiliza a função de filtro de e-mail
         autoCapitalize="none"
         keyboardType="email-address"
       />
-      {/* 🚨 NOVO INPUT: Campo para Celular */}
+      
       <TextInput
         style={styles.input}
         placeholder="Celular (Apenas números)"
         placeholderTextColor="#777"
         value={celular}
-        onChangeText={setCelular}
-        keyboardType="numeric" // Teclado otimizado para números de telefone
+        onChangeText={handleCelularChange} // <-- Utiliza a função de filtro de celular
+        keyboardType="numeric" 
         maxLength={11} 
       />
       
@@ -135,6 +190,10 @@ export default function CadastroScreen({ navigation }) {
     </View>
   );
 }
+
+// =================================================================
+// 5. ESTILOS (STYLESHEET)
+// =================================================================
 
 const styles = StyleSheet.create({
   container: {

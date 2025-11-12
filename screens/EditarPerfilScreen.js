@@ -12,6 +12,8 @@ import {
 } from 'react-native';
 import Slider from '@react-native-community/slider';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { MaterialIcons } from '@expo/vector-icons'; // 👈 NOVO: Importe para usar o ícone
+import * as ImagePicker from 'expo-image-picker'; // 👈 NOVO: Importe o Image Picker
 
 const AVATARES = [
     { id: 1, uri: 'https://i.pravatar.cc/150?img=12', nome: 'Herói Azul' },
@@ -36,6 +38,8 @@ export default function EditarPerfilScreen({ navigation, route }) {
         nivelAtual = 0.35,
         avatarIdAtual = 1,
         humorIndexAtual = 0,
+        // NOVO: Recebe a URI da foto da galeria
+        fotoGaleriaUriAtual = null, 
     } = params;
 
     const [nome, setNome] = useState(nomeAtual);
@@ -43,11 +47,46 @@ export default function EditarPerfilScreen({ navigation, route }) {
     const [nivelHeroi, setNivelHeroi] = useState(nivelAtual);
     const [avatarId, setAvatarId] = useState(avatarIdAtual);
     const [humorIndex, setHumorIndex] = useState(humorIndexAtual);
+    // NOVO: Estado para gerenciar a foto da galeria
+    const [fotoGaleriaUri, setFotoGaleriaUri] = useState(fotoGaleriaUriAtual); 
 
     function validarEmail(email) {
         const re = /\S+@\S+\.\S+/;
         return re.test(email);
     }
+    
+    // NOVO: Função para selecionar imagem da galeria
+    async function pickImage() {
+        // 1. Pedir permissão
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert(
+                'Permissão Necessária',
+                'É preciso permitir o acesso à galeria de fotos para escolher uma imagem de perfil.'
+            );
+            return;
+        }
+
+        // 2. Abrir a galeria
+        let result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            allowsEditing: true,
+            aspect: [1, 1], // Corte 1:1 para foto de perfil
+            quality: 1,
+        });
+
+        // 3. Processar o resultado
+        if (!result.canceled && result.assets && result.assets.length > 0) {
+            const uri = result.assets[0].uri;
+            setFotoGaleriaUri(uri); // Define a nova URI
+            setAvatarId(null); // Desmarca o avatar pré-definido
+            Alert.alert('Foto Selecionada', 'Lembre-se de salvar para aplicar a alteração.');
+
+            // Em um ambiente de produção, o UPLOAD para o servidor DEVE ocorrer aqui
+            // para obter uma URL pública/permanente antes de salvar.
+        }
+    }
+
 
     async function salvar() {
         if (!nome.trim()) {
@@ -68,19 +107,32 @@ export default function EditarPerfilScreen({ navigation, route }) {
 
             const humorSelecionado = HUMORES[humorIndex]?.frase;
 
+            // NOVO: Objeto de dados dinâmico
+            const dadosAtualizacao = {
+                nome: nome.trim(),
+                email: email.trim(), 
+                nivel_heroi: nivelHeroi,
+                humor_atual: humorSelecionado,
+            };
+
+            if (fotoGaleriaUri) {
+                // Se o usuário selecionou uma foto da galeria, enviamos a URI
+                // e garantimos que o avatarId seja nulo.
+                dadosAtualizacao.foto_perfil_uri = fotoGaleriaUri;
+                dadosAtualizacao.avatar_id = null;
+            } else {
+                // Caso contrário, enviamos o avatarId selecionado
+                dadosAtualizacao.avatar_id = avatarId;
+                dadosAtualizacao.foto_perfil_uri = null; // Limpa a foto da galeria no servidor
+            }
+            
             const response = await fetch("http://10.0.2.15:3000/usuario/atualizar", {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
                 },
-                body: JSON.stringify({
-                    nome: nome.trim(),
-                    email: email.trim(), // ✅ Agora o email é enviado
-                    nivel_heroi: nivelHeroi,
-                    avatar_id: avatarId,
-                    humor_atual: humorSelecionado,
-                }),
+                body: JSON.stringify(dadosAtualizacao), // Usa o objeto de dados atualizado
             });
 
             if (!response.ok) {
@@ -96,10 +148,36 @@ export default function EditarPerfilScreen({ navigation, route }) {
             Alert.alert('Erro', error.message || 'Não foi possível salvar o perfil. Tente novamente.');
         }
     }
+    
+    // NOVO: Determina qual URI exibir para a pré-visualização principal
+    const currentAvatarSource = fotoGaleriaUri 
+        ? { uri: fotoGaleriaUri } 
+        : { uri: AVATARES.find(a => a.id === avatarId)?.uri || AVATARES[0].uri };
+
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
             <Text style={styles.titulo}>Editar Perfil</Text>
+            
+            {/* NOVO: Pré-visualização do Avatar/Foto de Perfil */}
+            <View style={styles.currentAvatarContainer}>
+                <Image
+                    source={currentAvatarSource}
+                    style={styles.currentAvatarImage}
+                />
+            </View>
+
+            {/* NOVO: Botão para abrir a Galeria */}
+            <TouchableOpacity 
+                style={[styles.botaoGaleria, fotoGaleriaUri && styles.botaoGaleriaSelecionado]} 
+                onPress={pickImage}
+            >
+                <MaterialIcons name="photo-library" size={24} color={fotoGaleriaUri ? '#fff' : '#3A6EBF'} />
+                <Text style={[styles.textoBotaoGaleria, fotoGaleriaUri && { color: '#fff' }]}>
+                    {fotoGaleriaUri ? 'Mudar Foto da Galeria' : 'Escolher da Galeria'}
+                </Text>
+            </TouchableOpacity>
+            
             <Text style={styles.label}>Nome</Text>
             <TextInput
                 style={styles.input}
@@ -119,19 +197,33 @@ export default function EditarPerfilScreen({ navigation, route }) {
                 autoCapitalize="none"
                 autoCorrect={false}
             />
-            <Text style={styles.label}>Escolha seu Avatar</Text>
+            
+            <Text style={styles.label}>Escolha seu Avatar (ou use a foto da galeria)</Text>
+            
+            {/* Avatares Pré-definidos */}
             <View style={styles.avatarsContainer}>
                 {AVATARES.map(({ id, uri, nome }) => (
                     <TouchableOpacity
                         key={id}
-                        style={[styles.avatarOption, avatarId === id && styles.avatarSelecionado]}
-                        onPress={() => setAvatarId(id)}
+                        style={[
+                            styles.avatarOption, 
+                            avatarId === id && styles.avatarSelecionado,
+                            // NOVO: Desabilita se houver foto da galeria selecionada
+                            fotoGaleriaUri && styles.avatarDesabilitado 
+                        ]}
+                        onPress={() => {
+                            setAvatarId(id);
+                            setFotoGaleriaUri(null); // Limpa a foto da galeria
+                        }}
+                        disabled={!!fotoGaleriaUri} // Desabilita o toque
                     >
                         <Image source={{ uri }} style={styles.avatarImagem} />
                         <Text style={styles.avatarNome}>{nome}</Text>
                     </TouchableOpacity>
                 ))}
             </View>
+            
+            {/* ... (Restante do formulário) ... */}
             <Text style={styles.label}>Humor do Dia</Text>
             <View style={styles.humoresContainer}>
                 {HUMORES.map(({ emoji, frase }, index) => (
@@ -156,6 +248,7 @@ export default function EditarPerfilScreen({ navigation, route }) {
                 step={0.01}
                 style={{ marginBottom: 20 }}
             />
+            
             <TouchableOpacity style={styles.botao} onPress={salvar}>
                 <Text style={styles.textoBotao}>Salvar</Text>
             </TouchableOpacity>
@@ -199,6 +292,40 @@ const styles = StyleSheet.create({
         borderColor: '#cbd5e1',
         color: '#1e293b',
     },
+    // NOVOS ESTILOS PARA AVATAR/GALERIA
+    currentAvatarContainer: { 
+        alignItems: 'center',
+        marginBottom: 20,
+    },
+    currentAvatarImage: { 
+        width: 100,
+        height: 100,
+        borderRadius: 50,
+        borderWidth: 3,
+        borderColor: '#3A6EBF',
+    },
+    botaoGaleria: { 
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#E6E9F0',
+        paddingVertical: 12,
+        borderRadius: 12,
+        marginBottom: 20,
+        borderWidth: 2,
+        borderColor: '#E6E9F0',
+    },
+    botaoGaleriaSelecionado: {
+        backgroundColor: '#3A6EBF',
+        borderColor: '#3A6EBF',
+    },
+    textoBotaoGaleria: { 
+        marginLeft: 10,
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#3A6EBF',
+    },
+    // FIM DOS NOVOS ESTILOS
     avatarsContainer: {
         flexDirection: 'row',
         justifyContent: 'space-around',
@@ -213,6 +340,9 @@ const styles = StyleSheet.create({
     },
     avatarSelecionado: {
         borderColor: '#3A6EBF',
+    },
+    avatarDesabilitado: { // Estilo para avatares quando a foto da galeria está ativa
+        opacity: 0.4,
     },
     avatarImagem: {
         width: 70,

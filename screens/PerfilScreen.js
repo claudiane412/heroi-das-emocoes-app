@@ -34,6 +34,8 @@ export default function PerfilScreen({ navigation, route }) {
     const [nivelHeroi, setNivelHeroi] = useState(0.35);
     const [avatarId, setAvatarId] = useState(1);
     const [humorIndex, setHumorIndex] = useState(0);
+    // NOVO: Estado para armazenar a URI da foto da galeria
+    const [fotoGaleriaUri, setFotoGaleriaUri] = useState(null);
 
     // Usa useFocusEffect para carregar os dados sempre que a tela estiver em foco
     useFocusEffect(
@@ -56,7 +58,12 @@ export default function PerfilScreen({ navigation, route }) {
                     setNome(data.nome);
                     setEmail(data.email);
                     setNivelHeroi(data.nivel_heroi || 0);
-                    setAvatarId(data.avatar_id || 1);
+                    
+                    // NOVO: Carrega a URI da foto da galeria do servidor
+                    setFotoGaleriaUri(data.foto_perfil_uri || null);
+                    
+                    // Carrega o avatarId (será usado se não houver foto da galeria)
+                    setAvatarId(data.avatar_id || 1); 
 
                     const humorIndexServidor = HUMORES.findIndex(h =>
                         h.emoji === data.humor_atual || h.frase === data.humor_atual
@@ -100,8 +107,15 @@ export default function PerfilScreen({ navigation, route }) {
             nivelAtual: nivelHeroi,
             avatarIdAtual: avatarId,
             humorIndexAtual: humorIndex,
+            // NOVO: Passa a URI atual da galeria para a tela de edição
+            fotoGaleriaUriAtual: fotoGaleriaUri, 
         });
     }
+    
+    // NOVO: Determina qual URI usar
+    const avatarSource = fotoGaleriaUri 
+        ? { uri: fotoGaleriaUri } 
+        : { uri: AVATARES.find(a => a.id === avatarId)?.uri || AVATARES[0].uri };
 
     return (
         <View style={styles.container}>
@@ -109,7 +123,7 @@ export default function PerfilScreen({ navigation, route }) {
 
             <View style={styles.avatarContainer}>
                 <Image
-                    source={{ uri: AVATARES.find(a => a.id === avatarId)?.uri || AVATARES[0].uri }}
+                    source={avatarSource} // 👈 Usa a fonte do avatar/galeria
                     style={styles.avatar}
                 />
                 <TouchableOpacity onPress={handleEditProfile} style={styles.editButton}>
@@ -119,6 +133,7 @@ export default function PerfilScreen({ navigation, route }) {
             </View>
 
             <View style={styles.card}>
+                {/* ... (Restante do conteúdo do card) ... */}
                 <View style={styles.infoContainer}>
                     <MaterialIcons name="person" size={24} color="#521566" />
                     <View style={styles.textContainer}>
